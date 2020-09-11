@@ -79,11 +79,20 @@ namespace chip8::lifter {
 
 		Value *op_xor(Value *, Value *);
 
+		Value *op_mul(Value *, int);
+
+		Value *op_mul(Value *, Value *);
+
 		std::pair<Value *, Value *> uadd_with_overflow(Value *lhs, int);
 
 		std::pair<Value *, Value *> uadd_with_overflow(Value *lhs, Value *rhs);
 
+		std::pair<Value *, Value *> usub_with_overflow(Value *, int);
 
+		std::pair<Value *, Value *> usub_with_overflow(Value *, Value *);
+
+
+		Value *leading_zeroes(Value *lhs);
 	};
 }
 

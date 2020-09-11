@@ -15,8 +15,8 @@ namespace chip8::lifter::emitter {
 	}
 
 	void IREmitter::operator()(const CLS &i) {
-		std::clog << "CLS not implemented, skipping...\n";
-		//throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
+		auto f = b.bldr.CreateCall(m.clear_screen);
+		f; //call the function
 	}
 
 	void IREmitter::operator()(const RET &i) {
@@ -26,12 +26,6 @@ namespace chip8::lifter::emitter {
 	void IREmitter::operator()(const JUMPI &i) {
 		//Return from a subroutine.
 		//The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack pointer.
-		//throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
-		//auto sp = b.bldr.CreateLoad(m.SP);  //sp = m.SP
-		//auto val = b.read_array(m.stack, sp); //val = m.stack[m.SP]
-		//b.bldr.CreateStore(val, m.PC);    //PC = val
-		//auto res = b.op_sub(sp, 1);
-		//b.bldr.CreateStore(res, m.SP);
 		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
 	}
 
@@ -75,7 +69,7 @@ namespace chip8::lifter::emitter {
 		//Set Vx = Vx + kk.
 		//Adds the value kk to the value of register Vx, then stores the result in Vx.
 		auto vx = b.read_array(m.V, i.x());
-		auto res = b.op_add(vx, b.i16(i.kk()));
+		auto res = b.op_add(vx, i.kk());
 		b.write_array(m.V, i.x(), res);
 	}
 
@@ -126,23 +120,25 @@ namespace chip8::lifter::emitter {
 		//Vx and Vy are 8bit registers
 		auto x = b.read_array(m.V, i.x());
 		auto y = b.read_array(m.V, i.y());
-		//auto res = b.op_add(x,y);
-		auto[sum, carrybit] = b.uadd_with_overflow(x, y);
-		//expand carrybit to byte
-		auto carry = b.bldr.CreateSExt(carrybit, IntegerType::getInt8Ty(b.ctx));
+		auto[sum, overflowbit] = b.uadd_with_overflow(x, y);
+		auto overflow = b.bldr.CreateZExt(overflowbit, IntegerType::getInt8Ty(b.ctx)); //expand carrybit to byte
 		b.write_array(m.V, i.x(), sum);
-		b.write_array(m.V, 0xF, carry);
+		b.write_array(m.V, 0xF, overflow);
 	}
 
 	void IREmitter::operator()(const SUBR &i) {
 		//8xy5 - SUB Vx, Vy
 		//Set Vx = Vx - Vy, set VF = NOT borrow.
 		//If Vx > Vy, then VF is set to 1, otherwise 0. Then Vy is subtracted from Vx, and the results stored in Vx.
-		//TODO: handle Vf overflow check
+		//TODO: really verify overflow/borrow check is working
 		auto x = b.read_array(m.V, i.x());
 		auto y = b.read_array(m.V, i.y());
-		auto res = b.op_sub(x, y);
-		b.write_array(m.V, i.x(), res);
+		auto[sum, overflowbit] = b.usub_with_overflow(x, y);
+		auto neg_overflowbit = b.op_not(overflowbit);
+		auto overflow = b.bldr.CreateZExt(neg_overflowbit, IntegerType::getInt8Ty(b.ctx));
+		b.write_array(m.V, i.x(), sum);
+		b.write_array(m.V, 0xF, overflow);
+
 	}
 
 	void IREmitter::operator()(const SUBR_R &i) {
@@ -210,15 +206,47 @@ namespace chip8::lifter::emitter {
 	}
 
 	void IREmitter::operator()(const DRAW &i) {
-		std::cerr << "DRAW: skipping...\n";
-		//throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
+		//Dxyn - DRW Vx, Vy, nibble
+		//Display n-byte sprite starting at memory location I at (Vx, Vy), set VF = collision.
+		//
+		//The interpreter reads n bytes from memory, starting at the address stored in I.
+		// These bytes are then displayed as sprites on screen at coordinates (Vx, Vy).
+		// Sprites are XORed onto the existing screen.
+		// If this causes any pixels to be erased, VF is set to 1, otherwise it is set to 0.
+		// If the sprite is positioned so part of it is outside the coordinates of the display,
+		// it wraps around to the opposite side of the screen.
+		//Create sprite array, n bytes long
+		auto sprite = b.bldr.CreateAlloca(IntegerType::getInt8Ty(b.ctx), b.i8(i.n()));
+		auto ival = b.bldr.CreateLoad(m.I);
+		auto offset = b.bldr.CreateGEP(m.MEM, ival, "[I]");
+		b.bldr.CreateMemCpy(sprite, 1, offset, 1, b.i8(i.n()));
+		auto x = b.read_array(m.V, i.x());
+		auto y = b.read_array(m.V, i.y());
+		std::vector<Value *> args;
+
+		args.push_back(x);
+		args.push_back(y);
+		args.push_back(sprite);
+		args.push_back(b.i8(i.n()));
+
+		//bool clipped draw(u8 x, u8 y, u8* sprite, u8 n)
+		auto drawfunc = b.bldr.CreateCall(m.draw, args);
+		auto ret = drawfunc;   //call it
+		auto clipped = b.bldr.CreateZExt(ret, IntegerType::getInt8Ty(b.ctx));
+		b.write_array(m.V, 0xF, clipped);
 	}
 
 	void IREmitter::operator()(const SKEK &i) {
+		//Ex9E - SKP Vx
+		//Skip next instruction if key with the value of Vx is pressed.
+		//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the down position, PC is increased by 2.
 		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
 	}
 
 	void IREmitter::operator()(const SKNEK &i) {
+		//ExA1 - SKNP Vx
+		//Skip next instruction if key with the value of Vx is not pressed.
+		//Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is increased by 2.
 		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
 	}
 
@@ -231,7 +259,17 @@ namespace chip8::lifter::emitter {
 	}
 
 	void IREmitter::operator()(const KEY &i) {
-		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
+		//Fx0A - LD Vx, K
+		//Wait for a key press, store the value of the key in Vx.
+		//All execution stops until a key is pressed, then the value of that key is stored in Vx.
+		auto keys = b.bldr.CreateCall(m.block_keypad);
+		//keys is a 16-bit bitmask of keys pressed.
+		//ie 0x0001 -> '0'
+		//   0x0002 -> '0' and '1'
+		//TODO: assuming key to return is the lowest bit
+		auto zeroes = b.leading_zeroes(keys);
+		auto val = b.bldr.CreateZExtOrTrunc(zeroes, IntegerType::get(b.ctx, 8));
+		b.write_array(m.V, i.x(), val);
 	}
 
 	void IREmitter::operator()(const SETD &i) {
@@ -264,8 +302,13 @@ namespace chip8::lifter::emitter {
 		//Fx29 - LD F, Vx
 		//Set I = location of sprite for digit Vx.
 		//The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
-		std::cerr << "SPRITE: skipping...\n";
-		//throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
+
+		//Sprites are assumed to be 5 bytes long, starting at MEM[0].
+		//ie sprite for '4' starts at MEM[20]
+		auto x = b.read_array(m.V, i.x());
+		auto pos = b.op_mul(x, 5);
+		auto val = b.bldr.CreateZExt(pos, IntegerType::get(b.ctx, 16));
+		b.bldr.CreateStore(val, m.I);
 	}
 
 	void IREmitter::operator()(const BCD &i) {
@@ -279,32 +322,18 @@ namespace chip8::lifter::emitter {
 		//Fx55 - LD [I], Vx
 		//Store registers V0 through Vx in memory starting at location I.
 		//The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
-		auto itemp = b.bldr.CreateAlloca(IntegerType::getInt16Ty(b.ctx));
-		auto i_val = b.bldr.CreateLoad(m.I);
-		for (int j = 0; j < i.x() + 1; j++) {
-			auto v = b.read_array(m.V, j);
-			//auto vext = b.bldr.CreateZExt(v, IntegerType::getInt16Ty(b.ctx));
-			b.write_array(m.MEM, i_val, v);
-			auto add = b.op_add(i_val, 1);
-			b.bldr.CreateStore(add, itemp);
-			i_val = b.bldr.CreateLoad(itemp);
-		}
+		auto ival = b.bldr.CreateLoad(m.I);
+		auto offset = b.bldr.CreateGEP(m.MEM, ival, "[I]");    //  &m.MEM[ival]
+		//TODO: what's up with the DstAlign and SrcAlign values?
+		b.bldr.CreateMemCpy(offset, true, m.V, true, b.i8(i.x() + 1));
 	}
 
 	void IREmitter::operator()(const LOAD &i) {
 		//Fx65 - LD Vx, [I]
 		//Read registers V0 through Vx from memory starting at location I.
 		//The interpreter reads values from memory starting at location I into registers V0 through Vx.
-		auto itemp = b.bldr.CreateAlloca(IntegerType::getInt16Ty(b.ctx));
-		auto i_val = b.bldr.CreateLoad(m.I);
-		for (int j = 0; j < i.x(); j++) {
-			auto v = b.read_array(m.MEM, i_val);
-			//auto vext = b.bldr.CreateZExtOrTrunc(v, IntegerType::getInt8Ty(b.ctx));
-			b.write_array(m.V, j, v);
-
-			auto add = b.op_add(i_val, 1);
-			b.bldr.CreateStore(add, itemp);
-			i_val = b.bldr.CreateLoad(itemp);
-		}
+		auto ival = b.bldr.CreateLoad(m.I);
+		auto offset = b.bldr.CreateGEP(m.MEM, ival);    //  &m.MEM[ival]
+		b.bldr.CreateMemCpy(m.V, 1, offset, 1, b.i8(i.x() + 1));
 	}
 }

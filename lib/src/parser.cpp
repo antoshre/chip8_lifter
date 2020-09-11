@@ -43,8 +43,22 @@ namespace chip8::lifter {
 		//                                                        IntegerType::getInt16PtrTy(ctx));
 		//auto keyboard = cast<Function>(keyboard_func.getCallee());
 
-		auto rand_func = module.getOrInsertFunction("chip8::runtime::rand", IntegerType::getInt8Ty(ctx));
+		auto rand_func = module.getOrInsertFunction("random_byte", IntegerType::getInt8Ty(ctx));
 		auto rand = cast<Function>(rand_func.getCallee());
+
+		auto draw_func = module.getOrInsertFunction("draw", IntegerType::getInt1Ty(ctx), IntegerType::getInt8Ty(ctx),
+		                                            IntegerType::getInt8Ty(ctx), IntegerType::getInt8PtrTy(ctx),
+		                                            IntegerType::getInt8Ty(ctx));
+		auto draw = cast<Function>(draw_func.getCallee());
+
+		auto clear_screen_func = module.getOrInsertFunction("clear_screen", IntegerType::getVoidTy(ctx));
+		auto clear_screen = cast<Function>(clear_screen_func.getCallee());
+
+		auto poll_keypad_func = module.getOrInsertFunction("poll_keypad", IntegerType::getInt16Ty(ctx));
+		auto poll_keypad = cast<Function>(poll_keypad_func.getCallee());
+
+		auto block_keypad_func = module.getOrInsertFunction("block_keypad", IntegerType::getInt16Ty(ctx));
+		auto block_keypad = cast<Function>(block_keypad_func.getCallee());
 
 		BlockCache bcache(ctx, *foo);
 		IRBuilder<> b(ctx);
@@ -53,6 +67,10 @@ namespace chip8::lifter {
 
 		detail::Chip8Machine machine{b, bh};
 		machine.rand = rand;
+		machine.draw = draw;
+		machine.clear_screen = clear_screen;
+		machine.poll_keypad = poll_keypad;
+		machine.block_keypad = block_keypad;
 
 		auto foo_args = foo->arg_begin();
 		machine.MEM = foo_args++;
@@ -64,7 +82,5 @@ namespace chip8::lifter {
 		}
 
 		b.CreateRetVoid();
-
-
 	}
 }

@@ -32,7 +32,19 @@ namespace chip8::lifter {
 			llvm::Value *delay; //8 bits
 			llvm::Value *sound; //8 bits
 
-			llvm::Function *rand;
+			//Generates random number [0-255]
+			//Returns random number
+			llvm::Function *rand;   //u8 rand()
+			//Draws n bytes of sprite at (x,y)
+			//Returns 1 if overwriting happened, otherwise 0
+			llvm::Function *draw;   //int1 draw(int8 x, int8 y, int8* sprite, int8 n)
+
+			//Clears the screen
+			llvm::Function *clear_screen;   //void clear_screen()
+			//Returns bitmask representing the current keypad state
+			llvm::Function *poll_keypad; //int16 keypad()
+			//Waits for key, then returns bitmask of current keypad state
+			llvm::Function *block_keypad;
 		};
 	}
 

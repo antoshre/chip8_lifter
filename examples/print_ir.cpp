@@ -29,20 +29,20 @@ int main(int argc, char **argv) {
 
 	Listing l(file);
 
+	std::cout << l << std::endl;
+
 	auto has_indirect_jump = chip8::lifter::passes::check_for_indirect_jumps(l);
 	if (has_indirect_jump) {
 		std::cout << "Program contains indirect jump, cannot statically lift.  Sorry.\n";
 		return 3;
-	} else {
-		std::cout << "No indirect jumps found, continuing\n";
 	}
 
 	auto ctx = std::make_unique<LLVMContext>();
 	auto mod = std::make_unique<Module>("module", *ctx);
 
 	chip8::lifter::parse_listing(*mod, l);
-
-	std::cout << l << std::endl;
-
+	chip8::lifter::verify_module(*mod);
+	chip8::lifter::optimize_module(*mod);
+	chip8::lifter::print_module(*mod);
 	return 0;
 }

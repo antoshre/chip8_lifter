@@ -152,6 +152,15 @@ namespace chip8::lifter {
 		return bldr.CreateXor(lhs, rhs);
 	}
 
+	Value *BuilderHelper::op_mul(Value *lhs, int rhs) {
+		auto val = ConstantInt::get(lhs->getType(), rhs);
+		return op_mul(lhs, val);
+	}
+
+	Value *BuilderHelper::op_mul(Value *lhs, Value *rhs) {
+		return bldr.CreateMul(lhs, rhs);
+	}
+
 	std::pair<Value *, Value *> BuilderHelper::uadd_with_overflow(Value *lhs, int rhs) {
 		auto val = ConstantInt::get(lhs->getType(), rhs);
 		return uadd_with_overflow(lhs, val);
@@ -159,6 +168,24 @@ namespace chip8::lifter {
 
 	std::pair<Value *, Value *> BuilderHelper::uadd_with_overflow(Value *lhs, Value *rhs) {
 		CallInst *f = bldr.CreateBinaryIntrinsic(Intrinsic::uadd_with_overflow, lhs, rhs);
+		Value *results = f;
+		return {bldr.CreateExtractValue(results, 0), bldr.CreateExtractValue(results, 1)};
+	}
+
+	//Count leading zeroes
+	Value *BuilderHelper::leading_zeroes(Value *lhs) {
+		auto arg2 = ConstantInt::get(IntegerType::get(ctx, 1), false);
+		CallInst *f = bldr.CreateBinaryIntrinsic(Intrinsic::ctlz, lhs, arg2);
+		Value *result = f;
+		return f;
+	}
+
+	std::pair<Value *, Value *> BuilderHelper::usub_with_overflow(Value *lhs, int rhs) {
+		return usub_with_overflow(lhs, ConstantInt::get(lhs->getType(), rhs));
+	}
+
+	std::pair<Value *, Value *> BuilderHelper::usub_with_overflow(Value *lhs, Value *rhs) {
+		CallInst *f = bldr.CreateBinaryIntrinsic(Intrinsic::usub_with_overflow, lhs, rhs);
 		Value *results = f;
 		return {bldr.CreateExtractValue(results, 0), bldr.CreateExtractValue(results, 1)};
 	}
