@@ -27,12 +27,12 @@ int main() {
 			0x63, 0x00,
 			0xA2, 0x0A,
 			0xD2, 0x36,
-			0xFF, 0x55, //STORE(V0-V3)
+			//0xFF, 0x55, //STORE(V0-V3)
 	};
 	std::istrstream file = {reinterpret_cast<const char *>(program.data()),
 	                        static_cast<std::streamsize>(program.size())};
 
-	chip8::disasm::Listing l(file);
+	chip8::disasm::Listing l(file, 0x200);
 
 	std::cout << "Listing:\n" << l << '\n';
 

@@ -15,8 +15,9 @@ namespace chip8::lifter::emitter {
 	}
 
 	void IREmitter::operator()(const CLS &i) {
-		auto f = b.bldr.CreateCall(m.clear_screen);
-		f; //call the function
+		//auto f = b.bldr.CreateCall(m.clear_screen);
+		//f; //call the function
+		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
 	}
 
 	void IREmitter::operator()(const RET &i) {
@@ -189,10 +190,7 @@ namespace chip8::lifter::emitter {
 		//Bnnn - JP V0, addr
 		//Jump to location nnn + V0.
 		//The program counter is set to nnn plus the value of V0.
-		auto val = b.bldr.CreateLoad(m.I);
-		auto res = b.op_add(val, i.nnn());
-		b.bldr.CreateStore(res, m.I);
-
+		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
 	}
 
 	void IREmitter::operator()(const RAND &i) {
@@ -216,17 +214,15 @@ namespace chip8::lifter::emitter {
 		// If the sprite is positioned so part of it is outside the coordinates of the display,
 		// it wraps around to the opposite side of the screen.
 		//Create sprite array, n bytes long
-		auto sprite = b.bldr.CreateAlloca(IntegerType::getInt8Ty(b.ctx), b.i8(i.n()));
 		auto ival = b.bldr.CreateLoad(m.I);
 		auto offset = b.bldr.CreateGEP(m.MEM, ival, "[I]");
-		b.bldr.CreateMemCpy(sprite, 1, offset, 1, b.i8(i.n()));
 		auto x = b.read_array(m.V, i.x());
 		auto y = b.read_array(m.V, i.y());
 		std::vector<Value *> args;
 
 		args.push_back(x);
 		args.push_back(y);
-		args.push_back(sprite);
+		args.push_back(offset);
 		args.push_back(b.i8(i.n()));
 
 		//bool clipped draw(u8 x, u8 y, u8* sprite, u8 n)
