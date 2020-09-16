@@ -5,7 +5,7 @@
 #include "chip8/lifter.h"
 
 #include <cstdint>
-#include <strstream>
+#include <sstream>
 #include <iostream>
 
 int main() {
@@ -29,8 +29,8 @@ int main() {
 			0xD2, 0x36,
 			//0xFF, 0x55, //STORE(V0-V3)
 	};
-	std::istrstream file = {reinterpret_cast<const char *>(program.data()),
-	                        static_cast<std::streamsize>(program.size())};
+
+	std::istringstream file(std::string{reinterpret_cast<const char *>(program.data()), program.size()});
 
 	chip8::disasm::Listing l(file, 0x200);
 
