@@ -5,30 +5,30 @@
 #include "chip8/lifter/BuilderHelper.h"
 
 namespace chip8::lifter {
-	BuilderHelper::BuilderHelper(IRBuilder<> &b, LLVMContext &c, BlockCache &bc) : bldr(b), ctx(c), bblocks(bc) {}
+	BuilderHelper::BuilderHelper(LLVMContext &c, BlockCache &bc) : IRBuilder<>(c), bblocks(bc) {}
 
 	void BuilderHelper::jump_if(Value *cond, BasicBlock *target) {
 		//Branches require two BB targets: true path and false path
 		//Automatically create the false path with a unique name
-		std::string false_branch_name = bldr.GetInsertBlock()->getName().str() + "_fallthrough";
+		std::string false_branch_name = GetInsertBlock()->getName().str() + "_fallthrough";
 		//Check to make sure this name is actually unique in the function
-		for (const auto &bb : bldr.GetInsertBlock()->getModule()->getFunction("f")->getBasicBlockList()) {
+		for (const auto &bb : GetInsertBlock()->getModule()->getFunction("f")->getBasicBlockList()) {
 			if (false_branch_name == bb.getName()) {
 				throw std::runtime_error("Fallthrough branch name isn't unique?!");
 			}
 		}
 		auto bb_after_cond = bblocks[false_branch_name];
-		bldr.CreateCondBr(cond, target, bb_after_cond);
+		CreateCondBr(cond, target, bb_after_cond);
 		//Setup builder to keep inserting after the branch on the false path
-		bldr.SetInsertPoint(bb_after_cond);
+		SetInsertPoint(bb_after_cond);
 	}
 
 	Value *BuilderHelper::i8(int val) {
-		return llvm::ConstantInt::get(IntegerType::getInt8Ty(ctx), val);
+		return llvm::ConstantInt::get(IntegerType::getInt8Ty(this->Context), val);
 	}
 
 	Value *BuilderHelper::i16(int val) {
-		return llvm::ConstantInt::get(IntegerType::getInt16Ty(ctx), val);
+		return llvm::ConstantInt::get(IntegerType::getInt16Ty(this->Context), val);
 	}
 
 	Value *BuilderHelper::write_array(Value *ptr, int offset, int val) {
@@ -44,8 +44,11 @@ namespace chip8::lifter {
 	}
 
 	Value *BuilderHelper::write_array(Value *ptr, Value *offset, Value *val) {
-		auto elem = bldr.CreateGEP(ptr, offset);
-		return bldr.CreateStore(val, elem);
+		assert(ptr->getType()->isPointerTy());
+		assert(offset->getType()->isIntegerTy());
+		assert(offset->getType() == ptr->getType()->getPointerElementType());
+		auto elem = CreateGEP(ptr, offset);
+		return CreateStore(val, elem);
 	}
 
 	Value *BuilderHelper::read_array(Value *ptr, int offset) {
@@ -56,38 +59,41 @@ namespace chip8::lifter {
 	}
 
 	Value *BuilderHelper::read_array(Value *ptr, Value *offset) {
-		auto elem = bldr.CreateGEP(ptr, offset);
-		return bldr.CreateLoad(elem);
+		assert(ptr->getType()->isPointerTy());
+		assert(offset->getType()->isIntegerTy());
+		assert(offset->getType() == ptr->getType()->getPointerElementType());
+		auto elem = CreateGEP(ptr, offset);
+		return CreateLoad(elem);
 	}
 
 	//Branch to bb if lhs > rhs
 	void BuilderHelper::JGT(Value *lhs, Value *rhs, BasicBlock *bb) {
-		auto comp = bldr.CreateICmpSGT(lhs, rhs);
+		auto comp = CreateICmpSGT(lhs, rhs);
 		jump_if(comp, bb);
 	}
 
 	void BuilderHelper::JEQ(Value *lhs, Value *rhs, BasicBlock *bb) {
-		auto comp = bldr.CreateICmpEQ(lhs, rhs);
+		auto comp = CreateICmpEQ(lhs, rhs);
 		jump_if(comp, bb);
 	}
 
 	void BuilderHelper::JGE(Value *lhs, Value *rhs, BasicBlock *bb) {
-		auto comp = bldr.CreateICmpSGE(lhs, rhs);
+		auto comp = CreateICmpSGE(lhs, rhs);
 		jump_if(comp, bb);
 	}
 
 	void BuilderHelper::JLT(Value *lhs, Value *rhs, BasicBlock *bb) {
-		auto comp = bldr.CreateICmpSLT(lhs, rhs);
+		auto comp = CreateICmpSLT(lhs, rhs);
 		jump_if(comp, bb);
 	}
 
 	void BuilderHelper::JNE(Value *lhs, Value *rhs, BasicBlock *bb) {
-		auto comp = bldr.CreateICmpNE(lhs, rhs);
+		auto comp = CreateICmpNE(lhs, rhs);
 		jump_if(comp, bb);
 	}
 
 	void BuilderHelper::JLE(Value *lhs, Value *rhs, BasicBlock *bb) {
-		auto comp = bldr.CreateICmpSLE(lhs, rhs);
+		auto comp = CreateICmpSLE(lhs, rhs);
 		jump_if(comp, bb);
 	}
 
@@ -96,60 +102,60 @@ namespace chip8::lifter {
 	}
 
 	void BuilderHelper::JMP(BasicBlock *bb) {
-		bldr.CreateBr(bb);
+		CreateBr(bb);
 	}
 
 	Value *BuilderHelper::op_add(Value *lhs, int rhs) {
 		auto val = ConstantInt::get(lhs->getType(), rhs);
-		return bldr.CreateAdd(lhs, val);
+		return CreateAdd(lhs, val);
 	}
 
 	Value *BuilderHelper::op_add(Value *lhs, Value *rhs) {
-		return bldr.CreateAdd(lhs, rhs);
+		return CreateAdd(lhs, rhs);
 	}
 
 	Value *BuilderHelper::op_sub(Value *lhs, int rhs) {
 		auto val = ConstantInt::get(lhs->getType(), rhs);
-		return bldr.CreateSub(lhs, val);
+		return CreateSub(lhs, val);
 	}
 
 	Value *BuilderHelper::op_sub(Value *lhs, Value *rhs) {
-		return bldr.CreateSub(lhs, rhs);
+		return CreateSub(lhs, rhs);
 	}
 
 	Value *BuilderHelper::op_not(Value *lhs) {
-		return bldr.CreateNot(lhs);
+		return CreateNot(lhs);
 	}
 
 	Value *BuilderHelper::op_neg(Value *lhs) {
-		return bldr.CreateNeg(lhs);
+		return CreateNeg(lhs);
 	}
 
 	Value *BuilderHelper::op_and(Value *lhs, int rhs) {
 		auto val = ConstantInt::get(lhs->getType(), rhs);
-		return bldr.CreateAnd(lhs, val);
+		return CreateAnd(lhs, val);
 	}
 
 	Value *BuilderHelper::op_and(Value *lhs, Value *rhs) {
-		return bldr.CreateAnd(lhs, rhs);
+		return CreateAnd(lhs, rhs);
 	}
 
 	Value *BuilderHelper::op_or(Value *lhs, int rhs) {
 		auto val = ConstantInt::get(lhs->getType(), rhs);
-		return bldr.CreateOr(lhs, val);
+		return CreateOr(lhs, val);
 	}
 
 	Value *BuilderHelper::op_or(Value *lhs, Value *rhs) {
-		return bldr.CreateOr(lhs, rhs);
+		return CreateOr(lhs, rhs);
 	}
 
 	Value *BuilderHelper::op_xor(Value *lhs, int rhs) {
 		auto val = ConstantInt::get(lhs->getType(), rhs);
-		return bldr.CreateXor(lhs, val);
+		return CreateXor(lhs, val);
 	}
 
 	Value *BuilderHelper::op_xor(Value *lhs, Value *rhs) {
-		return bldr.CreateXor(lhs, rhs);
+		return CreateXor(lhs, rhs);
 	}
 
 	Value *BuilderHelper::op_mul(Value *lhs, int rhs) {
@@ -158,7 +164,7 @@ namespace chip8::lifter {
 	}
 
 	Value *BuilderHelper::op_mul(Value *lhs, Value *rhs) {
-		return bldr.CreateMul(lhs, rhs);
+		return CreateMul(lhs, rhs);
 	}
 
 	std::pair<Value *, Value *> BuilderHelper::uadd_with_overflow(Value *lhs, int rhs) {
@@ -167,15 +173,15 @@ namespace chip8::lifter {
 	}
 
 	std::pair<Value *, Value *> BuilderHelper::uadd_with_overflow(Value *lhs, Value *rhs) {
-		CallInst *f = bldr.CreateBinaryIntrinsic(Intrinsic::uadd_with_overflow, lhs, rhs);
+		CallInst *f = CreateBinaryIntrinsic(Intrinsic::uadd_with_overflow, lhs, rhs);
 		Value *results = f;
-		return {bldr.CreateExtractValue(results, 0), bldr.CreateExtractValue(results, 1)};
+		return {CreateExtractValue(results, 0), CreateExtractValue(results, 1)};
 	}
 
 	//Count leading zeroes
 	Value *BuilderHelper::leading_zeroes(Value *lhs) {
-		auto arg2 = ConstantInt::get(IntegerType::get(ctx, 1), false);
-		CallInst *f = bldr.CreateBinaryIntrinsic(Intrinsic::ctlz, lhs, arg2);
+		auto arg2 = ConstantInt::get(IntegerType::get(this->Context, 1), false);
+		CallInst *f = CreateBinaryIntrinsic(Intrinsic::ctlz, lhs, arg2);
 		Value *result = f;
 		return f;
 	}
@@ -185,9 +191,9 @@ namespace chip8::lifter {
 	}
 
 	std::pair<Value *, Value *> BuilderHelper::usub_with_overflow(Value *lhs, Value *rhs) {
-		CallInst *f = bldr.CreateBinaryIntrinsic(Intrinsic::usub_with_overflow, lhs, rhs);
+		CallInst *f = CreateBinaryIntrinsic(Intrinsic::usub_with_overflow, lhs, rhs);
 		Value *results = f;
-		return {bldr.CreateExtractValue(results, 0), bldr.CreateExtractValue(results, 1)};
+		return {CreateExtractValue(results, 0), CreateExtractValue(results, 1)};
 	}
 
 

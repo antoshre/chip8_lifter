@@ -15,7 +15,7 @@ namespace chip8::lifter::emitter {
 	}
 
 	void IREmitter::operator()(const CLS &i) {
-		//auto f = b.bldr.CreateCall(m.clear_screen);
+		//auto f = b.CreateCall(m.clear_screen);
 		//f; //call the function
 		throw std::runtime_error(std::string{i.get_mnemonic()} + " instruction not implemented");
 	}
@@ -122,7 +122,7 @@ namespace chip8::lifter::emitter {
 		auto x = b.read_array(m.V, i.x());
 		auto y = b.read_array(m.V, i.y());
 		auto[sum, overflowbit] = b.uadd_with_overflow(x, y);
-		auto overflow = b.bldr.CreateZExt(overflowbit, IntegerType::getInt8Ty(b.ctx)); //expand carrybit to byte
+		auto overflow = b.CreateZExt(overflowbit, b.i8()->getType()); //expand carrybit to byte
 		b.write_array(m.V, i.x(), sum);
 		b.write_array(m.V, 0xF, overflow);
 	}
@@ -136,7 +136,8 @@ namespace chip8::lifter::emitter {
 		auto y = b.read_array(m.V, i.y());
 		auto[sum, overflowbit] = b.usub_with_overflow(x, y);
 		auto neg_overflowbit = b.op_not(overflowbit);
-		auto overflow = b.bldr.CreateZExt(neg_overflowbit, IntegerType::getInt8Ty(b.ctx));
+		//auto overflow = b.CreateZExt(neg_overflowbit, IntegerType::getInt8Ty(b.Context));
+		auto overflow = b.CreateZExt(neg_overflowbit, b.i8()->getType());
 		b.write_array(m.V, i.x(), sum);
 		b.write_array(m.V, 0xF, overflow);
 
@@ -160,7 +161,7 @@ namespace chip8::lifter::emitter {
 		auto x = b.read_array(m.V, i.x());
 		auto res = b.op_and(x, 0x1);
 		b.write_array(m.V, 0xF, res);
-		auto v = b.bldr.CreateAShr(x, 1);
+		auto v = b.CreateAShr(x, 1);
 		b.write_array(m.V, i.x(), v);
 	}
 
@@ -171,7 +172,7 @@ namespace chip8::lifter::emitter {
 		auto x = b.read_array(m.V, i.x());
 		auto res = b.op_and(x, 0x1);
 		b.write_array(m.V, 0xF, res);
-		auto v = b.bldr.CreateShl(x, 1);
+		auto v = b.CreateShl(x, 1);
 		b.write_array(m.V, i.x(), v);
 	}
 
@@ -183,7 +184,7 @@ namespace chip8::lifter::emitter {
 		//Annn - LD I, addr
 		//Set I = nnn.
 		//The value of register I is set to nn
-		b.bldr.CreateStore(b.i16(i.nnn()), m.I);
+		b.CreateStore(b.i16(i.nnn()), m.I);
 	}
 
 	void IREmitter::operator()(const JUMPIND &i) {
@@ -197,7 +198,7 @@ namespace chip8::lifter::emitter {
 		//Cxkk - RND Vx, byte
 		//Set Vx = random byte AND kk.
 		//The interpreter generates a random number from 0 to 255, which is then ANDed with the value kk. The results are stored in Vx. See instruction 8xy2 for more information on AND.
-		auto rfunc = b.bldr.CreateCall(m.rand);
+		auto rfunc = b.CreateCall(m.rand);
 		Value *rnum = rfunc;
 		auto val = b.op_and(rnum, i.kk());
 		b.write_array(m.V, i.x(), val);
@@ -214,8 +215,8 @@ namespace chip8::lifter::emitter {
 		// If the sprite is positioned so part of it is outside the coordinates of the display,
 		// it wraps around to the opposite side of the screen.
 		//Create sprite array, n bytes long
-		auto ival = b.bldr.CreateLoad(m.I);
-		auto offset = b.bldr.CreateGEP(m.MEM, ival, "[I]");
+		auto ival = b.CreateLoad(m.I);
+		auto offset = b.CreateGEP(m.MEM, ival, "&MEM[I]");
 		auto x = b.read_array(m.V, i.x());
 		auto y = b.read_array(m.V, i.y());
 		std::vector<Value *> args;
@@ -226,9 +227,9 @@ namespace chip8::lifter::emitter {
 		args.push_back(b.i8(i.n()));
 
 		//bool clipped draw(u8 x, u8 y, u8* sprite, u8 n)
-		auto drawfunc = b.bldr.CreateCall(m.draw, args);
+		auto drawfunc = b.CreateCall(m.draw, args);
 		auto ret = drawfunc;   //call it
-		auto clipped = b.bldr.CreateZExt(ret, IntegerType::getInt8Ty(b.ctx));
+		auto clipped = b.CreateZExt(ret, b.i8()->getType());
 		b.write_array(m.V, 0xF, clipped);
 	}
 
@@ -250,7 +251,7 @@ namespace chip8::lifter::emitter {
 		//Fx07 - LD Vx, DT
 		//Set Vx = delay timer value.
 		//The value of DT is placed into Vx.
-		auto val = b.bldr.CreateLoad(m.delay);
+		auto val = b.CreateLoad(m.delay);
 		b.write_array(m.V, i.x(), val);
 	}
 
@@ -258,13 +259,13 @@ namespace chip8::lifter::emitter {
 		//Fx0A - LD Vx, K
 		//Wait for a key press, store the value of the key in Vx.
 		//All execution stops until a key is pressed, then the value of that key is stored in Vx.
-		auto keys = b.bldr.CreateCall(m.block_keypad);
+		auto keys = b.CreateCall(m.block_keypad);
 		//keys is a 16-bit bitmask of keys pressed.
 		//ie 0x0001 -> '0'
 		//   0x0002 -> '0' and '1'
 		//TODO: assuming key to return is the lowest bit
 		auto zeroes = b.leading_zeroes(keys);
-		auto val = b.bldr.CreateZExtOrTrunc(zeroes, IntegerType::get(b.ctx, 8));
+		auto val = b.CreateZExtOrTrunc(zeroes, b.i8()->getType());
 		b.write_array(m.V, i.x(), val);
 	}
 
@@ -273,7 +274,7 @@ namespace chip8::lifter::emitter {
 		//Set delay timer = Vx.
 		//DT is set equal to the value of Vx.
 		auto val = b.read_array(m.V, i.x());
-		b.bldr.CreateStore(val, m.delay);
+		b.CreateStore(val, m.delay);
 	}
 
 	void IREmitter::operator()(const SETS &i) {
@@ -281,17 +282,17 @@ namespace chip8::lifter::emitter {
 		//Set sound timer = Vx.
 		//ST is set equal to the value of Vx.
 		auto val = b.read_array(m.V, i.x());
-		b.bldr.CreateStore(val, m.sound);
+		b.CreateStore(val, m.sound);
 	}
 
 	void IREmitter::operator()(const IADDR &i) {
 		//Fx1E - ADD I, Vx
 		//Set I = I + Vx.
 		//The values of I and Vx are added, and the results are stored in I.
-		auto x = b.bldr.CreateLoad(m.I);
+		auto x = b.CreateLoad(m.I);
 		auto y = b.read_array(m.V, i.x());
 		auto res = b.op_add(x, y);
-		b.bldr.CreateStore(res, m.I);
+		b.CreateStore(res, m.I);
 	}
 
 	void IREmitter::operator()(const SPRITE &i) {
@@ -303,8 +304,8 @@ namespace chip8::lifter::emitter {
 		//ie sprite for '4' starts at MEM[20]
 		auto x = b.read_array(m.V, i.x());
 		auto pos = b.op_mul(x, 5);
-		auto val = b.bldr.CreateZExt(pos, IntegerType::get(b.ctx, 16));
-		b.bldr.CreateStore(val, m.I);
+		auto val = b.CreateZExt(pos, b.i16()->getType());
+		b.CreateStore(val, m.I);
 	}
 
 	void IREmitter::operator()(const BCD &i) {
@@ -318,18 +319,18 @@ namespace chip8::lifter::emitter {
 		//Fx55 - LD [I], Vx
 		//Store registers V0 through Vx in memory starting at location I.
 		//The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
-		auto ival = b.bldr.CreateLoad(m.I);
-		auto offset = b.bldr.CreateGEP(m.MEM, ival, "[I]");    //  &m.MEM[ival]
+		auto ival = b.CreateLoad(m.I);
+		auto offset = b.CreateGEP(m.MEM, ival, "&MEM[I]");    //  &m.MEM[ival]
 		//TODO: what's up with the DstAlign and SrcAlign values?
-		b.bldr.CreateMemCpy(offset, true, m.V, true, b.i8(i.x() + 1));
+		b.CreateMemCpy(offset, true, m.V, true, b.i8(i.x() + 1));
 	}
 
 	void IREmitter::operator()(const LOAD &i) {
 		//Fx65 - LD Vx, [I]
 		//Read registers V0 through Vx from memory starting at location I.
 		//The interpreter reads values from memory starting at location I into registers V0 through Vx.
-		auto ival = b.bldr.CreateLoad(m.I);
-		auto offset = b.bldr.CreateGEP(m.MEM, ival);    //  &m.MEM[ival]
-		b.bldr.CreateMemCpy(m.V, 1, offset, 1, b.i8(i.x() + 1));
+		auto ival = b.CreateLoad(m.I);
+		auto offset = b.CreateGEP(m.MEM, ival);    //  &m.MEM[ival]
+		b.CreateMemCpy(m.V, 1, offset, 1, b.i8(i.x() + 1));
 	}
 }

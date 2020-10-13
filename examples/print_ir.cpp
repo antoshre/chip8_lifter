@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 
-	Listing l(file, 0x200);
+	Listing l(file);
 
 	std::cout << l << std::endl;
 

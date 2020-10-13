@@ -19,18 +19,17 @@ using namespace llvm;
 
 namespace chip8::lifter {
 
-	detail::Chip8Machine::Chip8Machine(IRBuilder<> &b, BuilderHelper &bh) {
-		auto &ctx = b.getContext();
-		Type *int8 = IntegerType::getInt8Ty(ctx);
-		Type *int16 = IntegerType::getInt16Ty(ctx);
-		V = b.CreateAlloca(int8, bh.i8(16), "V registers");
-		I = b.CreateAlloca(int16, nullptr, "I register");
-		PC = b.CreateAlloca(int16, nullptr, "program counter");
-		SP = b.CreateAlloca(int8, nullptr, "stack pointer");
-		stack = b.CreateAlloca(int16, bh.i16(16), "stack");
+	detail::Chip8Machine::Chip8Machine(BuilderHelper &bh) {
+		Type *int8 = bh.i8()->getType();
+		Type *int16 = bh.i16()->getType();
+		V = bh.CreateAlloca(int8, bh.i8(16), "V registers");
+		I = bh.CreateAlloca(int16, nullptr, "I register");
+		PC = bh.CreateAlloca(int16, nullptr, "program counter");
+		SP = bh.CreateAlloca(int8, nullptr, "stack pointer");
+		stack = bh.CreateAlloca(int16, bh.i16(16), "stack");
 
-		delay = b.CreateAlloca(int8, nullptr, "delay register");
-		sound = b.CreateAlloca(int8, nullptr, "sound register");
+		delay = bh.CreateAlloca(int8, nullptr, "delay register");
+		sound = bh.CreateAlloca(int8, nullptr, "sound register");
 	}
 
 	void parse_listing(llvm::Module &module, const chip8::disasm::Listing &l) {
@@ -61,11 +60,13 @@ namespace chip8::lifter {
 		auto block_keypad = cast<Function>(block_keypad_func.getCallee());
 
 		BlockCache bcache(ctx, *foo);
-		IRBuilder<> b(ctx);
-		b.SetInsertPoint(bcache["entry"]);
-		BuilderHelper bh(b, ctx, bcache);
+		//IRBuilder<> b(ctx);
+		//b.SetInsertPoint(bcache["entry"]);
+		BuilderHelper bh(ctx, bcache);
+		bh.SetInsertPoint(bcache["entry"]);
 
-		detail::Chip8Machine machine{b, bh};
+		//detail::Chip8Machine machine{bh};
+		detail::Chip8Machine machine(bh);
 		machine.rand = rand;
 		machine.draw = draw;
 		machine.clear_screen = clear_screen;
@@ -81,6 +82,6 @@ namespace chip8::lifter {
 			std::visit(emitter::IREmitter{machine, bh}, inst);
 		}
 
-		b.CreateRetVoid();
+		bh.CreateRetVoid();
 	}
 }

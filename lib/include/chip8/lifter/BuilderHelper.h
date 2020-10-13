@@ -12,20 +12,19 @@
 using namespace llvm;
 
 namespace chip8::lifter {
-	struct BuilderHelper {
-		IRBuilder<> &bldr;
-		LLVMContext &ctx;
+	struct BuilderHelper : public IRBuilder<> {
 		BlockCache &bblocks;
 
 		void jump_if(Value *, BasicBlock *);
 
 	public:
-		BuilderHelper(IRBuilder<> &b, LLVMContext &c, BlockCache &bc);
+		BuilderHelper(LLVMContext &c, BlockCache &bc);
 
-		Value *i8(int);
+		Value *i8(int= 0);
+
 
 		//Create an i16 constant
-		Value *i16(int);
+		Value *i16(int= 0);
 
 		Value *write_array(Value *, int, int);
 

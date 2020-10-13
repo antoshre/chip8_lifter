@@ -18,7 +18,8 @@ namespace chip8::lifter {
 
 	namespace detail {
 		struct Chip8Machine {
-			Chip8Machine(llvm::IRBuilder<> &b, chip8::lifter::BuilderHelper &bh);
+			Chip8Machine(chip8::lifter::BuilderHelper &bh);
+
 
 			llvm::Value *V; //16 8 bit GP regs
 			llvm::Value *I; //16 bit
