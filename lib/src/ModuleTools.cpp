@@ -81,7 +81,7 @@ namespace chip8::lifter {
 
 	//TODO: de-duplicate these run functions.  Dynamically detect signature?  Template and forget?
 	void run_void_func(std::unique_ptr<Module> mod, std::unique_ptr<LLVMContext> ctx, const std::string &fname,
-	                   std::array<std::uint8_t, 4096> &mem, bool print_results) {
+	                   std::span<std::uint8_t> mem, bool print_results) {
 		InitializeNativeTarget();
 		InitializeNativeTargetAsmPrinter();
 		InitializeNativeTargetAsmParser();

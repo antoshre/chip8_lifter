@@ -9,15 +9,9 @@
 #include <cstdint>
 #include <vector>
 #include <iostream>
+#include <span>
 
-TEST(Instructions, SETI) {
-	std::vector<std::uint8_t> program = {
-			0x60, 0xCC, //SETI: set V0 to 0xCC
-			0x61, 0xFF, //SETI: set V1 to 0xFF
-			//dump registers to memory
-			0xA0, 0x00, //ISETI: set I to 0x000
-			0xFF, 0x55, //STORE registers 0-F starting at &MEM[I]
-	};
+void run_fragment(const std::span<std::uint8_t> &program, std::span<std::uint8_t> memory) {
 	std::istringstream file(std::string{reinterpret_cast<const char *>(program.data()), program.size()});
 
 	chip8::disasm::Listing l(file);
@@ -29,18 +23,31 @@ TEST(Instructions, SETI) {
 	chip8::lifter::optimize_module(*mod);
 	//chip8::lifter::print_module(*mod);
 
-	std::array<std::uint8_t, 4096> memory{0};
+	//Fragments are mapped at 0x200, so memory must be at least 0x200 + program size large
+	ASSERT_GE(memory.size(), 0x200 + program.size());
+
 	auto iter = memory.begin();
 	std::advance(iter, 0x200);
 	std::copy(program.begin(), program.end(), iter);
 
 	chip8::lifter::run_void_func(std::move(mod), std::move(ctx), "f", memory, false);
+}
 
-	ASSERT_EQ(memory[0], 0xCC);
-	ASSERT_EQ(memory[1], 0xFF);
-	for (int i = 2; i < 0x200; i++) {
-		ASSERT_EQ(memory[i], 0x00);
-	}
+TEST(Instructions, SETI) {
+	std::vector<std::uint8_t> program = {
+			0x60, 0xCC, //SETI: set V0 to 0xCC
+			0x61, 0xFF, //SETI: set V1 to 0xFF
+			//dump registers to memory
+			0xA0, 0x00, //ISETI: set I to 0x000
+			0xFF, 0x55, //STORE registers 0-F starting at &MEM[I]
+	};
+
+	std::array<std::uint8_t, 4096> memory{0};
+
+	run_fragment(program, memory);
+
+	EXPECT_EQ(memory[0], 0xCC);
+	EXPECT_EQ(memory[1], 0xFF);
 }
 
 TEST(Instructions, ADDI) {
@@ -52,28 +59,12 @@ TEST(Instructions, ADDI) {
 			0xA0, 0x00, //ISETI: set I to 0x000
 			0xFF, 0x55, //STORE registers 0-F starting at &MEM[I]
 	};
-	std::istringstream file(std::string{reinterpret_cast<const char *>(program.data()), program.size()});
-
-	chip8::disasm::Listing l(file);
-
-	auto ctx = std::make_unique<LLVMContext>();
-	auto mod = std::make_unique<Module>("module", *ctx);
-	chip8::lifter::parse_listing(*mod, l);
-	ASSERT_NO_THROW(chip8::lifter::verify_module(*mod));
-	chip8::lifter::optimize_module(*mod);
-	//chip8::lifter::print_module(*mod);
 
 	std::array<std::uint8_t, 4096> memory{0};
-	auto iter = memory.begin();
-	std::advance(iter, 0x200);
-	std::copy(program.begin(), program.end(), iter);
 
-	chip8::lifter::run_void_func(std::move(mod), std::move(ctx), "f", memory, false);
+	run_fragment(program, memory);
 
-	ASSERT_EQ(memory[0], 0xFF);
-	for (int i = 2; i < 0x200; i++) {
-		ASSERT_EQ(memory[i], 0x00);
-	}
+	EXPECT_EQ(memory[0], 0xFF);
 }
 
 TEST(Instructions, ADDR) {
@@ -86,56 +77,30 @@ TEST(Instructions, ADDR) {
 			0xA0, 0x00, //ISETI: set I to 0x000
 			0xFF, 0x55, //STORE registers 0-F starting at &MEM[I]
 	};
-	std::istringstream file(std::string{reinterpret_cast<const char *>(program.data()), program.size()});
-
-	chip8::disasm::Listing l(file);
-
-	auto ctx = std::make_unique<LLVMContext>();
-	auto mod = std::make_unique<Module>("module", *ctx);
-	chip8::lifter::parse_listing(*mod, l);
-	ASSERT_NO_THROW(chip8::lifter::verify_module(*mod));
-	chip8::lifter::optimize_module(*mod);
-	//chip8::lifter::print_module(*mod);
 
 	std::array<std::uint8_t, 4096> memory{0};
-	auto iter = memory.begin();
-	std::advance(iter, 0x200);
-	std::copy(program.begin(), program.end(), iter);
 
-	chip8::lifter::run_void_func(std::move(mod), std::move(ctx), "f", memory, false);
+	run_fragment(program, memory);
 
-	ASSERT_EQ(memory[0], 0xFF);
-	ASSERT_EQ(memory[0xF], 0);
+	EXPECT_EQ(memory[0], 0xFF);
+	EXPECT_EQ(memory[0xF], 0);
 }
 
 TEST(Instructions, ADDR_overflow) {
 	std::vector<std::uint8_t> program = {
 			0x60, 0xCC, //SETI: set V0 to 0xCC
-			0x61, 0x34, //SETI: set V1 to 0x33
+			0x61, 0x34, //SETI: set V1 to 0x34
 			0x80, 0x14, //ADDR: V0 += V1
-			//Expect: V0 = 0xFF, Overflow(Vf) = 0
+			//Expect: V0 = 0x00, Overflow(Vf) = 1
 			//dump registers to memory
 			0xA0, 0x00, //ISETI: set I to 0x000
 			0xFF, 0x55, //STORE registers 0-F starting at &MEM[I]
 	};
-	std::istringstream file(std::string{reinterpret_cast<const char *>(program.data()), program.size()});
-
-	chip8::disasm::Listing l(file);
-
-	auto ctx = std::make_unique<LLVMContext>();
-	auto mod = std::make_unique<Module>("module", *ctx);
-	chip8::lifter::parse_listing(*mod, l);
-	ASSERT_NO_THROW(chip8::lifter::verify_module(*mod));
-	chip8::lifter::optimize_module(*mod);
-	//chip8::lifter::print_module(*mod);
 
 	std::array<std::uint8_t, 4096> memory{0};
-	auto iter = memory.begin();
-	std::advance(iter, 0x200);
-	std::copy(program.begin(), program.end(), iter);
 
-	chip8::lifter::run_void_func(std::move(mod), std::move(ctx), "f", memory, false);
+	run_fragment(program, memory);
 
-	ASSERT_EQ(memory[0], 0x00);
-	ASSERT_EQ(memory[0xF], 1);
+	EXPECT_EQ(memory[0], 0x00);
+	EXPECT_EQ(memory[0xF], 1);
 }

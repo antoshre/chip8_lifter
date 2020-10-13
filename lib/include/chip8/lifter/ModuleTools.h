@@ -6,6 +6,9 @@
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
 
+#include <span>
+#include <memory>
+
 
 #ifndef HACK_LIFTER_MODULEOPTIMIZER_H
 #define HACK_LIFTER_MODULEOPTIMIZER_H
@@ -19,11 +22,8 @@ namespace chip8::lifter {
 
 	void verify_module(llvm::Module &);
 
-	int run_int16_func(std::unique_ptr<Module>, std::unique_ptr<LLVMContext>, const std::string &,
-	                   std::array<std::uint8_t, 4096> &, bool= true);
-
 	void run_void_func(std::unique_ptr<Module>, std::unique_ptr<LLVMContext>, const std::string &,
-	                   std::array<uint8_t, 4096> &, bool= true);
+	                   std::span<uint8_t>, bool= true);
 	//int run(std::unique_ptr<Module>&, const std::string& func_name, std::array<int16_t, 16>&);
 }
 
