@@ -8,14 +8,16 @@ jobs:
       compiler: gcc
       addons:
         apt:
+          sources:
+            - boost-latest
+            - ubuntu-toolchain-r-test #repo with g++ packages
+            - sourceline: 'deb http://apt.llvm.org/unstable/ llvm-toolchain-10 main'
           packages:
             - g++-10
             - llvm-10-dev
             - clang-10
             - libboost-all-dev #chip8_disassembler requires boost for now
-          sources:
-            - ubuntu-toolchain-r-test #repo with g++ packages
-            - sourceline: 'deb http://apt.llvm.org/unstable/ llvm-toolchain-10 main'
+
 
 #Get CMake 3.15.7
 # From https://riptutorial.com/cmake/example/4723/configure-travis-ci-with-newest-cmake
