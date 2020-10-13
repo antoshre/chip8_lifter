@@ -12,6 +12,7 @@ jobs:
             - g++-10
             - llvm-10-dev
             - clang-10
+            - libboost-all-dev #chip8_disassembler requires boost for now
           sources:
             - ubuntu-toolchain-r-test #repo with g++ packages
             - sourceline: 'deb http://apt.llvm.org/unstable/ llvm-toolchain-10 main'
