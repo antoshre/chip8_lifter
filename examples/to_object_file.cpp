@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 
-	Listing l(file, 0x200);
+	Listing l(file);
 
 	auto has_indirect_jump = chip8::lifter::passes::check_for_indirect_jumps(l);
 	if (has_indirect_jump) {

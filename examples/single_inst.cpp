@@ -32,7 +32,7 @@ int main() {
 
 	std::istringstream file(std::string{reinterpret_cast<const char *>(program.data()), program.size()});
 
-	chip8::disasm::Listing l(file, 0x200);
+	chip8::disasm::Listing l(file);
 
 	std::cout << "Listing:\n" << l << '\n';
 

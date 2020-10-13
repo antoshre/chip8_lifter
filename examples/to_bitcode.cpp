@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
 		return 2;
 	}
 
-	chip8::disasm::Listing l(file, 0x200);
+	chip8::disasm::Listing l(file);
 
 	std::cout << "Listing:\n" << l << '\n';
 
