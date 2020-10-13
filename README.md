@@ -26,18 +26,18 @@ Chip8 programs are traditionally mapped starting at `0x200`, so `0x20A` correspo
 ```
 examples/print_ir ../../roms/draw_space_invader.ch8
 Listing:
-6200: SETI	| V2 = 000
-6300: SETI	| V3 = 000
+6200: SETI	| V2 = 0x00
+6300: SETI	| V3 = 0x00
 A20A: ISETI	| I = 0x20a
-D236: DRAW	| draw(V2, V3, 0x6)
+D236: DRAW	| draw(V2, V3, 6)
 
 ; ModuleID = 'module'
 source_filename = "module"
 
 define void @f(i8* %MEM) local_unnamed_addr {
 entry:
-  %"[I]" = getelementptr i8, i8* %MEM, i64 522
-  %0 = tail call i1 @draw(i8 0, i8 0, i8* %"[I]", i8 6)
+  %"&MEM[I]" = getelementptr i8, i8* %MEM, i64 522
+  %0 = tail call i1 @draw(i8 0, i8 0, i8* %"&MEM[I]", i8 6)
   ret void
 }
 
