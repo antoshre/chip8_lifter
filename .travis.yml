@@ -9,7 +9,7 @@ jobs:
       addons:
         apt:
           sources:
-            - boost-latest
+            - mhier/libboost-latest
             - ubuntu-toolchain-r-test #repo with g++ packages
             - sourceline: 'deb http://apt.llvm.org/unstable/ llvm-toolchain-10 main'
           packages:
