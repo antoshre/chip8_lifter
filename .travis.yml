@@ -1,0 +1,51 @@
+language: cpp
+os: linux
+dist: bionic
+
+jobs:
+  include:
+    - os: linux
+      compiler: gcc
+      addons:
+        apt:
+          packages:
+            - g++-10
+            - llvm-10-dev
+            - clang-10
+          sources:
+            - ubuntu-toolchain-r-test #repo with g++ packages
+            - sourceline: 'deb http://apt.llvm.org/unstable/ llvm-toolchain-10 main'
+
+#Get CMake 3.15.7
+# From https://riptutorial.com/cmake/example/4723/configure-travis-ci-with-newest-cmake
+# the install step will take care of deploying a newer cmake version
+install:
+  # first we create a directory for the CMake binaries
+  - DEPS_DIR="${TRAVIS_BUILD_DIR}/deps"
+  - mkdir ${DEPS_DIR} && cd ${DEPS_DIR}
+  # we use wget to fetch the cmake binaries
+  - travis_retry wget https://cmake.org/files/v3.15/cmake-3.15.7-Linux-x86_64.tar.gz
+  # extract the binaries; the output here is quite lengthy,
+  # so we swallow it to not clutter up the travis console
+  - tar -xvf cmake-3.15.7-Linux-x86_64.tar.gz > /dev/null
+  - mv cmake-3.15.7-Linux-x86_64 cmake-install
+  # add both the top-level directory and the bin directory from the archive
+  # to the system PATH. By adding it to the front of the path we hide the
+  # preinstalled CMake with our own.
+  - PATH=${DEPS_DIR}/cmake-install:${DEPS_DIR}/cmake-install/bin:$PATH
+  # don't forget to switch back to the main build directory once you are done
+  - cd ${TRAVIS_BUILD_DIR}
+
+script:
+  ############################################################################
+  # Build main and tests
+  ############################################################################
+  - CXX=/usr/bin/g++-10
+  - CC=/usr/bin/gcc-10
+  - mkdir -p build
+  - cd build
+  - cmake -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON -DBUILD_EXAMPLES=OFF ..
+  - cmake --build .
+  - cd tests
+  #Convert Add.asm and run the object file
+  - ./all_tests
