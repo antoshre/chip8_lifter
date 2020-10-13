@@ -1,4 +1,7 @@
 # chip8_lifter
+
+[![Build Status](https://travis-ci.com/antoshre/chip8_lifter.svg?branch=master)](https://travis-ci.com/antoshre/chip8_lifter)
+
 Static lifter for Chip8 assembly into LLVM IR
 
 Most definitely early-alpha.  Doesn't support any kind of branching, yet.

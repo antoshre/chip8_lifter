@@ -9,14 +9,13 @@ jobs:
       addons:
         apt:
           sources:
-            - mhier/libboost-latest
             - ubuntu-toolchain-r-test #repo with g++ packages
             - sourceline: 'deb http://apt.llvm.org/unstable/ llvm-toolchain-10 main'
           packages:
             - g++-10
             - llvm-10-dev
             - clang-10
-            - libboost-all-dev #chip8_disassembler requires boost for now
+            - libboost1.71-all-dev #chip8_disassembler requires boost for now
 
 
 #Get CMake 3.15.7
