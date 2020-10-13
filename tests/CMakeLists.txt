@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.10)
 project(tests)
 
-add_executable(all_tests source.cpp)
-target_link_libraries(all_tests chip8::disasm)
+add_executable(all_tests source.cpp fragments.cpp)
+target_link_libraries(all_tests chip8::lifter)
 
 find_package(GTest)
 if (NOT GTEST_FOUND)
